@@ -32,6 +32,7 @@ function mask_line,velo,spec,velocities,fitorder,velocity_buffer=velocity_buffer
 
     fit_mask = replicate(0,n_elements(velo))
     replace_mask = replicate(0,n_elements(velo))
+    ; n_e(v)-2 because elements 0,-1 are the endpoints
     for ii=0,n_elements(velocities)-2 do begin
         vmin = velocities[ii]
         vmax = velocities[ii+1]
@@ -235,6 +236,10 @@ function make_off,flist,exclude_middle=exclude_middle,percentile=percentile,dopl
         writefits,outfile,velo
         outfile = strjoin(strsplit(savefile,".fits",/regex,/extract,/preserve_null),"_offspectra.fits")
         writefits,outfile,avg_off
+        if keyword_set(do_mask_line) then begin
+            outfile = strjoin(strsplit(savefile,".fits",/regex,/extract,/preserve_null),"_offspectra_nomask.fits")
+            writefits,outfile,avg_off_A
+        endif
         outfile = strjoin(strsplit(savefile,".fits",/regex,/extract,/preserve_null),"_scanmeans.fits")
         writefits,outfile,scanmeans
     endif
@@ -321,6 +326,7 @@ pro accum_map,flist,savefile=savefile,line=line,output_prefix=output_prefix,offs
     fxhmake,fitsheader,/extend,/initialize,/date
     fitsheader = fitsheader[0:4]
     for jj=0,n_elements(tagnames)-1 do begin
+        if stregex(tagnames[jj],"TDIM",/bool) then continue
         szval = size(avspec.h.(jj))
         if (szval[1] eq 1 or szval[1] eq 2) then begin
             printval = string(avspec.h.(jj),format='(I66)')
@@ -332,8 +338,12 @@ pro accum_map,flist,savefile=savefile,line=line,output_prefix=output_prefix,offs
         fitsheader = [fitsheader,string(tagnames[jj],format='(A8)') + "= " + printval]
     endfor
     daycnv, spec.h.MJDXXOBS+2400000.5D, yr, mn, day, hr
+    dateobs = []
+    for qq=0,n_elements(yr)-1 do begin
+        dateobs = [dateobs,string([yr[qq],mn[qq],day[qq],hr[qq]],format='(I04,"/",I02,"/",I02," ",F8.4)')]
+    endfor
     etamb_polyfit = poly((90-spec.h.elevatio),[0.491544,0.00580397,-0.000341992])
-    fitsheader = [fitsheader,'DATEOBS =  ' + string([yr,mn,day,hr],format='(I04,"/",I02,"/",I02," ",F6.4)')]
+    fitsheader = [fitsheader,'DATEOBS =  ' + dateobs]
     fitsheader = [fitsheader,'ETAMB   =  ' + string(etamb_polyfit,format='(F)')]
     exposuretime = total(spec.h.exposure)
     fitsheader = [fitsheader,'EXPOSURE=  ' + string(exposuretime)]
@@ -382,13 +392,14 @@ pro accum_map,flist,savefile=savefile,line=line,output_prefix=output_prefix,offs
         restfreq=restfreq,hack_obsmode=hack_obsmode)
 
     help,offspec_avg
+    help,specarr
 
     fxbhmake,fitsheader,nrows,'AreciboMap','Individual spectra for mapping'
-    fxbaddcol,1,fitsheader,specarr,'spectra'
-    fxbaddcol,2,fitsheader,ra,'ra'
-    fxbaddcol,3,fitsheader,dec,'dec'
-    fxbaddcol,4,fitsheader,glon,'glon'
-    fxbaddcol,5,fitsheader,glat,'glat'
+    fxbaddcol,1,fitsheader,specarr,'SPECTRA'
+    fxbaddcol,2,fitsheader,ra,'RA'
+    fxbaddcol,3,fitsheader,dec,'DEC'
+    fxbaddcol,4,fitsheader,glon,'GLON'
+    fxbaddcol,5,fitsheader,glat,'GLAT'
     fxbaddcol,6,fitsheader,ra,'CRVAL2'
     fxbaddcol,7,fitsheader,dec,'CRVAL3'
     fxbaddcol,8,fitsheader,dec,'CALA'
