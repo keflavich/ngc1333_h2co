@@ -319,6 +319,7 @@ pro accum_map,flist,savefile=savefile,line=line,output_prefix=output_prefix,offs
     istat2 = masgetfile(desc,spec)
     istat3 = masgetfile(desc,avspec,/avg)
     ;istat3 = masavg(desc,1,avspec)
+    masclose,desc
 
     wcs_line,avspec.h,crpix=crpix,cdelt=cdelt,crvalL=crvalL,vel_lsr=vel_lsr,crvalT=crvalT,line=line
     tagnames = tag_names(avspec.h)
