@@ -33,6 +33,12 @@ end
 
 pro wcs_line,header,line=line,crpix=crpix,cdelt=cdelt,crvalL=crvalL,vel_lsr=vel_lsr,crvalT=crvalT,$
     restfreq=restfreq
+    if keyword_set(restfreq) then begin
+        if ((restfreq lt 4000) or (restfreq gt 6000)) then begin
+            message,'Rest frequency is not within C-band.  Must be specified in MHz.  Was: '+strtrim(restfreq)
+        endif
+    endif
+
     if ~keyword_set(line) then begin
         if ~keyword_set(restfreq) then restfreq = 4829.6594
     endif else if line eq 'h2co' or line eq 'h2coW' then begin

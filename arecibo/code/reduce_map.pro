@@ -21,7 +21,8 @@ function get_scanlist,scanstart,nscans,fbase=fbase,bsg=bsg,obsdate=obsdate,machi
     return,flist[1:*]
 end
 
-function mask_line,velo,spec,velocities,fitorder,velocity_buffer=velocity_buffer
+function mask_line,velo,spec,velocities,fitorder,velocity_buffer=velocity_buffer,$
+         pp=pp
     ; velocities should be specified as a set of ranges to fit
     ; in between will be interpolated over
     ; e.g.:
@@ -70,7 +71,7 @@ function make_off,flist,exclude_middle=exclude_middle,percentile=percentile,dopl
     continuum_fitpars=continuum_fitpars, fitorder_off=fitorder_off,scanmeans=scanmeans,dostop=dostop,$
     speccube=speccube, scaled_speccube=speccube_scaled, savefile=savefile, do_mask_line=do_mask_line, $
     fitorder_line=fitorder_line, velocities=velocities, velocity_buffer=velocity_buffer, $
-    restfreq=restfreq,hack_obsmode=hack_obsmode
+    restfreq=restfreq,hack_obsmode=hack_obsmode,domedsmooth=domedsmooth
     ; continuum_fitpars : output array with polyfit parameters for each pol
     ; scanmeans : output array of accumulated spectrum means
 
@@ -191,8 +192,14 @@ function make_off,flist,exclude_middle=exclude_middle,percentile=percentile,dopl
     avg_off_A = total(speccube_scaled,3) / nscans
 
     if keyword_set(do_mask_line) then begin
-        off0 = mask_line(velo, avg_off_A[*,0], velocities, fitorder_line, velocity_buffer=velocity_buffer)
-        off1 = mask_line(velo, avg_off_A[*,1], velocities, fitorder_line, velocity_buffer=velocity_buffer)
+        pol1 = avg_off_A[*,0]
+        pol2 = avg_off_A[*,1]
+        if keyword_set(domedsmooth) then begin
+            pol1 = medsmooth(pol1, 5)
+            pol2 = medsmooth(pol2, 5)
+        endif
+        off0 = mask_line(velo, pol1, velocities, fitorder_line, velocity_buffer=velocity_buffer,pp=pp1)
+        off1 = mask_line(velo, pol2, velocities, fitorder_line, velocity_buffer=velocity_buffer,pp=pp2)
         avg_off = [[off0],[off1]]
     endif else begin
         avg_off = avg_off_A
@@ -253,7 +260,8 @@ end
 pro accum_map,flist,savefile=savefile,line=line,output_prefix=output_prefix,offsmooth=offsmooth,obsdate=obsdate,$
     dostop=dostop,scanstart=scanstart,nscans=nscans,machine=machine,velocities=velocities,restfreq=restfreq,$
     fitorder=fitorder,projid=projid,debug=debug,flatten=flatten,percentile=percentile,exclude_middle=exclude_middle,$
-    velocity_buffer=velocity_buffer,zoomregion=zoomregion,doplot=doplot,do_mask_line=do_mask_line,hack_obsmode=hack_obsmode
+    velocity_buffer=velocity_buffer,zoomregion=zoomregion,doplot=doplot,do_mask_line=do_mask_line,hack_obsmode=hack_obsmode,$
+    domedsmooth=domedsmooth
 
     if ~keyword_set(obsdate) then obsdate='20101111'
     if ~keyword_set(line) then line = 'h2co'
@@ -264,7 +272,7 @@ pro accum_map,flist,savefile=savefile,line=line,output_prefix=output_prefix,offs
         ;if ~keyword_set(output_prefix) then output_prefix = '/home/aginsbur/nov'+strmid(obsdate,6,2)+'/'
         if ~keyword_set(output_prefix) then output_prefix = '/share/'+projid+'dat/'+obsdate+'/'
     endif else message,'wrong machine '+machine
-    if ~keyword_set(offsmooth) then offsmooth=-64
+    ; not used if ~keyword_set(offsmooth) then offsmooth=-64
     if ~keyword_set(fitorder) then fitorder=2
     if n_elements(exclude_middle) eq 0 then exclude_middle = 1 ; try to exclude the central "spike" from the Mock
     ; number of km/s above/below the specified velocities to include when fitting
@@ -321,7 +329,7 @@ pro accum_map,flist,savefile=savefile,line=line,output_prefix=output_prefix,offs
     ;istat3 = masavg(desc,1,avspec)
     masclose,desc
 
-    wcs_line,avspec.h,crpix=crpix,cdelt=cdelt,crvalL=crvalL,vel_lsr=vel_lsr,crvalT=crvalT,line=line
+    wcs_line,avspec.h,crpix=crpix,cdelt=cdelt,crvalL=crvalL,vel_lsr=vel_lsr,crvalT=crvalT,line=line,restfreq=restfreq
     tagnames = tag_names(avspec.h)
     ;fxbhmake,fitsheader,n_elements(flist)*n_elements(spec),'data',/initialize,/date
     fxhmake,fitsheader,/extend,/initialize,/date
@@ -390,7 +398,7 @@ pro accum_map,flist,savefile=savefile,line=line,output_prefix=output_prefix,offs
         doplot=doplot, continuum_fitpars=continuum_fitpars,  fitorder_off=fitorder_off, $
         scanmeans=scanmeans, dostop=dostop, savefile=savefile, do_mask_line=do_mask_line, $
         velocities=velocities, velocity_buffer=velocity_buffer, $
-        restfreq=restfreq,hack_obsmode=hack_obsmode)
+        restfreq=restfreq,hack_obsmode=hack_obsmode,domedsmooth=domedsmooth)
 
     help,offspec_avg
     help,specarr
